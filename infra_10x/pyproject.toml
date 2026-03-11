@@ -23,7 +23,8 @@ classifiers = [
 
 [project.optional-dependencies]
 test-py10x = [
-    "py10x-core==0.1.14",
+    "py10x-core[rio]==0.1.14",
+    "pytest>=9.0.2",
 ]
 
 [project.urls]

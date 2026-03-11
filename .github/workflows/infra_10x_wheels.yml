@@ -36,27 +36,30 @@ jobs:
       - name: Setup Mongo replica set
         uses: 10x-software/py10x/.github/actions/setup-mongo-replica-set@main
 
-      - name: Run released py10x compatibility smoke test
+      - name: Run released py10x full unit test suite
         working-directory: /tmp
+        env:
+          PYTHONUNBUFFERED: "1"
         run: |
           set -euo pipefail
           source .venv/bin/activate
           python - <<'PY'
-          import importlib.metadata as md
-          import py10x_infra
-          from py10x_infra import MongoCollectionHelper
+          import pathlib
+          import subprocess
+          import sys
 
-          assert md.version("py10x-core") == "0.1.14"
+          import core_10x
 
-          data = {"_id": "AAA", "_rev": 1, "name": "test", "age": 60}
-          filt = {}
-          pipeline = []
-          MongoCollectionHelper.prepare_filter_and_pipeline(data, filt, pipeline)
-          assert filt == {"_id": "AAA", "_rev": 1}
-          assert pipeline
-
-          print("Infra release compatibility smoke test passed")
-          print(py10x_infra.__file__)
+          py10x_root = pathlib.Path(core_10x.__file__).resolve().parent.parent
+          targets = [
+              py10x_root / "core_10x" / "unit_tests",
+              py10x_root / "infra_10x" / "unit_tests",
+              py10x_root / "ui_10x" / "rio" / "unit_tests",
+              py10x_root / "ui_10x" / "rio" / "widgets" / "unit_tests",
+              py10x_root / "ui_10x" / "unit_tests",
+          ]
+          cmd = [sys.executable, "-m", "pytest", *map(str, targets)]
+          raise SystemExit(subprocess.call(cmd))
           PY
 
   build_wheels:

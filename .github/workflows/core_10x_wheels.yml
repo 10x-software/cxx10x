@@ -36,32 +36,30 @@ jobs:
       - name: Setup Mongo replica set
         uses: 10x-software/py10x/.github/actions/setup-mongo-replica-set@main
 
-      - name: Run released py10x compatibility smoke test
+      - name: Run released py10x full unit test suite
         working-directory: /tmp
+        env:
+          PYTHONUNBUFFERED: "1"
         run: |
           set -euo pipefail
           source .venv/bin/activate
           python - <<'PY'
-          import importlib.metadata as md
-          import py10x_kernel
-          from core_10x.exec_control import CACHE_ONLY, GRAPH_ON
-          from core_10x.traitable import T, RT, Traitable
+          import pathlib
+          import subprocess
+          import sys
 
-          assert md.version("py10x-core") == "0.1.14"
+          import core_10x
 
-          class Smoke(Traitable):
-              key: int = RT(T.ID)
-              value: int = RT()
-
-              def value_get(self) -> int:
-                  return self.key + 1
-
-          with CACHE_ONLY(), GRAPH_ON():
-              x = Smoke(key=1)
-              assert x.value == 2
-
-          print("Kernel release compatibility smoke test passed")
-          print(py10x_kernel.__file__)
+          py10x_root = pathlib.Path(core_10x.__file__).resolve().parent.parent
+          targets = [
+              py10x_root / "core_10x" / "unit_tests",
+              py10x_root / "infra_10x" / "unit_tests",
+              py10x_root / "ui_10x" / "rio" / "unit_tests",
+              py10x_root / "ui_10x" / "rio" / "widgets" / "unit_tests",
+              py10x_root / "ui_10x" / "unit_tests",
+          ]
+          cmd = [sys.executable, "-m", "pytest", *map(str, targets)]
+          raise SystemExit(subprocess.call(cmd))
           PY
 
   build_wheels:
