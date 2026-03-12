@@ -25,6 +25,9 @@ jobs:
       - name: Checkout cxx10x
         uses: actions/checkout@v4
 
+      - name: Check test-py10x pins are consistent
+        run: python3 scripts/check_test_py10x_pin.py
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
         with:

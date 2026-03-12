@@ -16,6 +16,9 @@ jobs:
       - name: Checkout cxx10x
         uses: actions/checkout@v4
 
+      - name: Check test-py10x pins are consistent
+        run: python3 scripts/check_test_py10x_pin.py
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
         with:
@@ -23,15 +26,8 @@ jobs:
           cache-dependency-glob: |
             **/pyproject.toml
 
-      - name: Set up Python
-        run: uv python install 3.12
-
       - name: Install released py10x + local kernel package
-        run: |
-          uv venv --python 3.12
-          source .venv/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install "${{ github.workspace }}/core_10x[test-py10x]"
+        run: uv sync --project core_10x --extra test-py10x --python 3.12
 
       - name: Setup Mongo replica set
         uses: 10x-software/py10x/.github/actions/setup-mongo-replica-set@main
@@ -42,7 +38,7 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: |
           set -euo pipefail
-          source .venv/bin/activate
+          source "${{ github.workspace }}/core_10x/.venv/bin/activate"
           python - <<'PY'
           import pathlib
           import subprocess
