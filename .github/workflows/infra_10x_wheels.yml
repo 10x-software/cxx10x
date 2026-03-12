@@ -29,6 +29,11 @@ jobs:
       - name: Install released py10x + local infra package
         run: uv sync --project infra_10x --extra test-py10x --python 3.12
 
+      - name: Validate py10x-core package compatibility
+        run: |
+          source "${{ github.workspace }}/infra_10x/.venv/bin/activate"
+          python "${{ github.workspace }}/scripts/validate_py10x_core_compat.py"
+
       - name: Setup Mongo replica set
         uses: 10x-software/py10x/.github/actions/setup-mongo-replica-set@main
 
