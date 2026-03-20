@@ -7,7 +7,64 @@ on:
   workflow_dispatch:
 
 jobs:
+  test_with_released_py10x:
+    name: Test against released py10x
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout cxx10x
+        uses: actions/checkout@v4
+
+      - name: Check test-py10x pins are consistent
+        run: python3 scripts/check_test_py10x_pin.py
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+
+      - name: Install released py10x + local kernel package
+        run: uv sync --project core_10x --extra test-py10x --python 3.12
+
+      - name: Validate py10x-core package compatibility
+        run: |
+          source "${{ github.workspace }}/core_10x/.venv/bin/activate"
+          python "${{ github.workspace }}/scripts/validate_py10x_core_compat.py"
+
+      - name: Setup Mongo replica set
+        uses: 10x-software/py10x/.github/actions/setup-mongo-replica-set@main
+
+      - name: Run released py10x full unit test suite
+        working-directory: /tmp
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          set -euo pipefail
+          source "${{ github.workspace }}/core_10x/.venv/bin/activate"
+          python - <<'PY'
+          import pathlib
+          import subprocess
+          import sys
+
+          import core_10x
+
+          py10x_root = pathlib.Path(core_10x.__file__).resolve().parent.parent
+          targets = [
+              py10x_root / "core_10x" / "unit_tests",
+              py10x_root / "infra_10x" / "unit_tests",
+              py10x_root / "ui_10x" / "rio" / "unit_tests",
+              py10x_root / "ui_10x" / "rio" / "widgets" / "unit_tests",
+              py10x_root / "ui_10x" / "unit_tests",
+          ]
+          cmd = [sys.executable, "-m", "pytest", *map(str, targets)]
+          raise SystemExit(subprocess.call(cmd))
+          PY
+
   build_wheels:
+    needs: test_with_released_py10x
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
