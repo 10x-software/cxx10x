@@ -1,0 +1,53 @@
+name: Test against released py10x
+description: >-
+  Install the cxx10x package with its test-py10x extra, run the full py10x
+  unit test suite against the resolved released py10x-core version.
+
+inputs:
+  package-dir:
+    description: Path to the cxx10x package directory (core_10x or infra_10x).
+    required: true
+  python-version:
+    description: Python version to use for the test environment.
+    required: false
+    default: "3.12"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: |
+          **/pyproject.toml
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install released py10x + local cxx10x package
+      shell: bash
+      run: uv sync --project "${{ inputs.package-dir }}" --extra test-py10x
+
+    - name: Check test-py10x pins are consistent
+      shell: bash
+      run: |
+        source "${{ inputs.package-dir }}/.venv/bin/activate"
+        python scripts/check_test_py10x_pin.py
+
+    - name: Record resolved py10x-core version
+      shell: bash
+      run: |
+        source "${{ inputs.package-dir }}/.venv/bin/activate"
+        python -c "import importlib.metadata as m; print(f'Resolved py10x-core=={m.version(\"py10x-core\")}')"
+
+    - name: Setup Mongo replica set
+      uses: 10x-software/py10x/.github/actions/setup-mongo-replica-set@main
+
+    - name: Run released py10x unit test suite
+      shell: bash
+      env:
+        PYTHONUNBUFFERED: "1"
+      run: |
+        source "${{ inputs.package-dir }}/.venv/bin/activate"
+        py10x_root="$(python -c 'import core_10x, pathlib; print(pathlib.Path(core_10x.__file__).resolve().parent.parent)')"
+        echo "Running pytest in ${py10x_root}"
+        pytest "${py10x_root}"

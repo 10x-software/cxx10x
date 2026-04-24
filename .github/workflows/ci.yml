@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    # Nightly at 02:30 UTC
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  py10x-tests:
+    name: py10x tests against cxx10x head
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout cxx10x
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+          python-version: "3.12"
+
+      - name: Check test-py10x pins are consistent
+        run: uv run --python 3.12 python scripts/check_test_py10x_pin.py
+
+      - name: Checkout py10x
+        run: git clone https://github.com/10x-software/py10x.git ../py10x
+
+      - name: Install dependencies with local cxx10x sources
+        working-directory: ../py10x
+        run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
+
+      - name: Setup Mongo replica set
+        uses: 10x-software/py10x/.github/actions/setup-mongo-replica-set@main
+
+      - name: Run py10x unit tests
+        env:
+          PYTHONUNBUFFERED: "1"
+        working-directory: ../py10x
+        run: |
+          source .venv/bin/activate
+          pytest

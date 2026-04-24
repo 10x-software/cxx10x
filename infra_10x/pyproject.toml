@@ -21,6 +21,11 @@ classifiers = [
     "Development Status :: 4 - Beta",
 ]
 
+[project.optional-dependencies]
+test-py10x = [
+    "py10x-core[rio,dev]>=0.1,<0.2",
+]
+
 [project.urls]
 Homepage = "https://10x-software.org"
 

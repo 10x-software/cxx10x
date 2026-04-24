@@ -7,7 +7,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  test_with_released_py10x:
+    name: Test against released py10x
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout cxx10x
+        uses: actions/checkout@v4
+
+      - name: Test against released py10x
+        uses: ./.github/actions/test-against-released-py10x
+        with:
+          package-dir: infra_10x
+
   build_wheels:
+    needs: test_with_released_py10x
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
